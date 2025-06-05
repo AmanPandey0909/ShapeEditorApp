@@ -48,7 +48,7 @@ public class ShapeController : ControllerBase
         Cv2.Dilate(edges, edges, kernel);
         Cv2.MorphologyEx(edges, edges, MorphTypes.Close, kernel); // clean double edges
 
-        Cv2.FindContours(edges, out Point[][] contours, out HierarchyIndex[] hierarchy, RetrievalModes.CComp, ContourApproximationModes.ApproxSimple);
+        Cv2.FindContours(edges, out Point[][] contours, out HierarchyIndex[] hierarchy, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
 
         var shapes = new List<ShapeModel>();
         int imageArea = mat.Width * mat.Height;

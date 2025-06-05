@@ -7,7 +7,26 @@ const originalCtx = originalCanvas.getContext("2d");
 
 let shapes = [];
 let currentShapeIndex = 0;
-let uploadedImage = null; // 🔁 Store image to redraw later
+let uploadedImage = null;
+
+const shapeList = document.getElementById("shapeList");
+
+function populateShapeList() {
+    shapeList.innerHTML = "";
+    shapes.forEach((shape, index) => {
+        const li = document.createElement("li");
+        li.textContent = `${index + 1}. ${shape.name ?? shape.Name}`;
+        li.style.cursor = "pointer";
+        li.style.padding = "4px";
+        li.style.borderBottom = "4px solid #ccc";
+        if (index === currentShapeIndex) li.style.backgroundColor = "#eef";
+        li.addEventListener("click", () => {
+            currentShapeIndex = index;
+            resetScaleAndDraw();
+        });
+        shapeList.appendChild(li);
+    });
+}
 
 document.getElementById("imageInput").addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -20,7 +39,6 @@ document.getElementById("imageInput").addEventListener("change", async (e) => {
     img.onload = () => {
         uploadedImage = img;
 
-        // Fit image into canvas with proper aspect ratio
         const { width: cw, height: ch } = originalCanvas;
         const iw = uploadedImage.width;
         const ih = uploadedImage.height;
@@ -39,7 +57,6 @@ document.getElementById("imageInput").addEventListener("change", async (e) => {
         drawOriginalOutlines();
     };
 
-
     const formData = new FormData();
     formData.append("image", file);
 
@@ -49,23 +66,20 @@ document.getElementById("imageInput").addEventListener("change", async (e) => {
     });
 
     const result = await response.json();
-    console.log("Shape Detection Response:", result);
-
-
     shapes = result.Shapes ?? result.shapes ?? [];
 
     if (Array.isArray(shapes)) {
         shapes.forEach(shape => {
             const pts = shape.points ?? shape.Points;
-            shape.originalPoints = pts.map(p => [...p]); // deep copy
-            shape.Points = pts.map(p => [...p]); // working copy
+            shape.originalPoints = pts.map(p => [...p]);
+            shape.Points = pts.map(p => [...p]);
         });
 
         currentShapeIndex = 0;
         resetScaleAndDraw();
         drawOriginalOutlines();
         drawEditorCanvas();
-
+        populateShapeList();
     } else {
         console.warn("shapes is not defined or not an array:", shapes);
     }
@@ -97,8 +111,6 @@ function drawOriginalOutlines() {
         originalCtx.stroke();
     }
 }
-
-
 
 function drawEditorCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -136,17 +148,18 @@ function drawEditorCanvas() {
     });
 }
 
-
 document.getElementById("btnPrev").addEventListener("click", () => {
     if (shapes.length === 0) return;
     currentShapeIndex = (currentShapeIndex - 1 + shapes.length) % shapes.length;
     resetScaleAndDraw();
+    populateShapeList();
 });
 
 document.getElementById("btnNext").addEventListener("click", () => {
     if (shapes.length === 0) return;
     currentShapeIndex = (currentShapeIndex + 1) % shapes.length;
     resetScaleAndDraw();
+    populateShapeList();
 });
 
 function resetScaleAndDraw() {
@@ -159,7 +172,6 @@ function resetScaleAndDraw() {
     const shape = shapes[currentShapeIndex];
     shape.Points = shape.originalPoints.map(p => [...p]);
 
-    // Calculate scale to fit original image into right canvas
     const iw = uploadedImage?.width ?? 1;
     const ih = uploadedImage?.height ?? 1;
     const cw = canvas.width;
@@ -173,7 +185,6 @@ function resetScaleAndDraw() {
 
     drawEditorCanvas();
 }
-
 
 document.getElementById("scaleSlider").addEventListener("input", (e) => {
     if (shapes.length === 0) return;
@@ -195,10 +206,49 @@ document.getElementById("scaleSlider").addEventListener("input", (e) => {
     drawEditorCanvas();
 });
 
-    document.getElementById("btnDownload").addEventListener("click", () => {
+document.getElementById("btnDownload").addEventListener("click", () => {
     const canvas = document.getElementById("canvas");
     const link = document.createElement("a");
     link.download = "redrawn_image.png";
     link.href = canvas.toDataURL("image/png");
     link.click();
+});
+
+
+canvas.addEventListener("click", (e) => {
+    if (!canvas._drawInfo || shapes.length === 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const { scale, offsetX, offsetY } = canvas._drawInfo;
+
+    for (let i = 0; i < shapes.length; i++) {
+        const pts = shapes[i].Points;
+        if (!Array.isArray(pts)) continue;
+
+        // Use ray-casting algorithm for point-in-polygon
+        let inside = false;
+        for (let j = 0, k = pts.length - 1; j < pts.length; k = j++) {
+            const [xj, yj] = pts[j];
+            const [xk, yk] = pts[k];
+
+            const sxj = xj * scale + offsetX;
+            const syj = yj * scale + offsetY;
+            const sxk = xk * scale + offsetX;
+            const syk = yk * scale + offsetY;
+
+            const intersect = ((syj > y) !== (syk > y)) &&
+                (x < (sxk - sxj) * (y - syj) / (syk - syj + 0.00001) + sxj);
+            if (intersect) inside = !inside;
+        }
+
+        if (inside) {
+            currentShapeIndex = i;
+            resetScaleAndDraw();
+            break;
+        }
+        populateShapeList();
+    }
 });
