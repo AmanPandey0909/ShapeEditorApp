@@ -1,0 +1,33 @@
+﻿@{
+    ViewData["Title"] = "Shape Editor";
+}
+
+<h2>Shape Detection & Editing </h2>
+
+<div>
+    <input type="file" id="imageInput" accept="image/*" />
+</div>
+
+<div style="margin-top:20px; display: flex; gap: 20px;">
+    <!-- Canvas #1: show original image + faint outlines -->
+    <div>
+        <p>Original Image (with outlines)</p>
+        <canvas id="originalCanvas" width="640" height="480" style="border:1px solid #ccc;"></canvas>
+    </div>
+
+    <!-- Canvas #2: editor, draw only shapes, allow editing -->
+    <div>
+        <p>Editor Canvas (select + scale shapes)</p>
+        <canvas id="canvas" width="640" height="480" style="border:1px solid #ccc;"></canvas>
+        <button id="btnDownload" style="margin-top:10px;">Download Redrawn Image</button>
+        <div style="margin-top:10px;">
+            <button id="btnPrev">Prev</button>
+            <button id="btnNext">Next</button>
+            <label style="margin-left:20px;">Scale: <input type="range" id="scaleSlider" min="50" max="200" value="100" /></label>
+            <span id="scaleValue">1.00×</span>
+        </div>
+    </div>
+</div>
+
+<!-- Editor JS -->
+<script src="~/js/editor.js"></script>
